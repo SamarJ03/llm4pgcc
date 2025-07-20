@@ -1,0 +1,33 @@
+# dirs
+config/
+# config/config_library.xlsx
+docs/
+docs/
+logs/
+resources/
+results/
+scripts/
+src/
+tools/
+
+# files
+dataCollection.ipynb
+18_llm4pgcc.py
+
+# logs
+*.log
+
+# envs
+.pgccEnv/
+.conda/
+.env
+*.env*
+env/
+ENV/
+venv/
+.venv/
+
+# other
+.DS_Store
+._*
+__pycache__/
