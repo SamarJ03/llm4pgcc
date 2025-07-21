@@ -1,0 +1,25 @@
+name: pgccEnv
+channels: 
+ - conda-forge
+ - defaults
+dependencies:
+ - python=3.10.13
+ - pandas
+ - rdkit
+ - numpy
+ - scikit-learn
+ - loguru
+ - transformers
+ - pytorch # CUDA??
+ - openai
+ - tiktoken
+ - tqdm
+ - pubchempy
+ - pip
+ - openpyxl
+ - ipykernel
+ - tabulate
+ - python-dotenv
+# ! conda env create -f environment.yml
+# ! conda activate pgccEnv
+

@@ -1,17 +1,12 @@
 # dirs
-config/
-# config/config_library.xlsx
-docs/
-docs/
-logs/
-resources/
-results/
-scripts/
-src/
-tools/
+docs/.archive/
 
 # files
+docs/project_objective.md
+docs/UsingtheCluster.pdf
+config/config_library.xlsx
 dataCollection.ipynb
+testConfig.ipynb
 18_llm4pgcc.py
 
 # logs
