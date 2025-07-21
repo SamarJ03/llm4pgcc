@@ -36,4 +36,12 @@ if __name__ == "__main__":
 
     # setup conda env
     
-    # 
+    # TODO: 
+    # 1) logging setup
+    # file paths, levels, formatting, versatility
+
+    # 2) CondaEnv
+    # * path handling, creation/activation
+    # ! eval "$(conda shell.bash hook)"
+    # ! conda env create -p "{env_path}" -f "{env_file}" python=3.10.13
+    # ! conda activate "{env_path}"
