@@ -1,7 +1,9 @@
-name: pgccEnv
-channels: 
+name: l4pEnv
+channels:
  - conda-forge
  - defaults
+envs_dirs:
+ - /Users/samarjosyula/Desktop/Projects/llm4pgcc/l4pEnv
 dependencies:
  - python=3.10.13
  - pandas
@@ -20,6 +22,6 @@ dependencies:
  - ipykernel
  - tabulate
  - python-dotenv
+
 # ! conda env create -f environment.yml
 # ! conda activate pgccEnv
-

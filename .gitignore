@@ -1,5 +1,6 @@
 # dirs
 docs/.archive/
+.temp/
 
 # files
 docs/project_objective.md
