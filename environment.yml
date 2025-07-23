@@ -2,8 +2,6 @@ name: l4pEnv
 channels:
  - conda-forge
  - defaults
-envs_dirs:
- - /Users/samarjosyula/Desktop/Projects/llm4pgcc/l4pEnv
 dependencies:
  - python=3.10.13
  - pandas

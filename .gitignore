@@ -1,11 +1,13 @@
 # dirs
 docs/.archive/
+samples/
 .temp/
+logs/
 
 # files
 docs/project_objective.md
 docs/UsingtheCluster.pdf
-config/config_library.xlsx
+config_library.xlsx
 dataCollection.ipynb
 testConfig.ipynb
 18_llm4pgcc.py
