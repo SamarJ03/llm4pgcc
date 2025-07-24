@@ -27,11 +27,18 @@ class Setup:
         if not load_dotenv(): logger.critical('Unable to load .env file.')
 
         self.verbose = parser.parse_known_args(['verbose']).verbose; set_key(self.env_path, "VERBOSE", self.verbose, export=True)
-        for dirName in ['data', 'logs', 'resources', 'results', 'results', 'src', 'tools']:
+        for dirName in ['data', 'logs', 'resources', 'results', 'scaffold' 'results', 'src', 'utils']:
             path = os.path.join(self.base_path, dirName); os.makedirs(path, exist_ok=True)
             setattr(self, f'{dirName}_path', path); set_key(self.env_path, f'{dirName.upper()}_PATH', path, export=True)
 
-        # initParser = parser.add_argument_group(title='init')
+        initParser = parser.add_argument_group(title='init')
+        runAllParser = parser.add_argument_group(title='run')
+
+        promptParser = parser.add_argument_group(title='genPrompt')
+        synthParser = parser.add_argument_group(title='synth')
+        inferParser = parser.add_argument_group(title='infer')
+        summParser = parser.add_argument_group(title='summ')
+        codeParser = parser.add_argument_group(title='genCode')
 
 class Run(): pass
 

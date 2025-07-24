@@ -9,7 +9,6 @@ class Log:
         logParser.add_argument('')
         # retention, default_verbose,
 
-
     def initLogger(rtn='10 MB'):
         logDir = os.getenv("LOGS_PATH")
         logger.remove()

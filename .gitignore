@@ -5,9 +5,13 @@ samples/
 logs/
 
 # files
+README.md
+projectTree.md
 docs/project_objective.md
 docs/UsingtheCluster.pdf
-config_library.xlsx
+source*.xlsx
+source*.csv
+
 dataCollection.ipynb
 testConfig.ipynb
 18_llm4pgcc.py
