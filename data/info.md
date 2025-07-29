@@ -11,6 +11,7 @@ Place the source input data within this directory path. Accepted formats are CSV
 - to make alterations to the column names, run <init --set_labels>.
 
 - required:
+  > "compound_name"
   > "SMILES"
     * (The compound in SMILES format)
   > "PGCC_score"
@@ -21,7 +22,6 @@ Place the source input data within this directory path. Accepted formats are CSV
   > "nonPGCC_score"
     * (nonPGCC post-treatment biodata)
     * [post_cancCell / pre_cancCell * 100]
-  > "compound_name"
   > "pathway"
   > "target"
   > "info"
