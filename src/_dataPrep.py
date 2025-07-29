@@ -1,10 +1,9 @@
-import os, sys, requests
+import os, sys, requests, json
 import polars as pl
 import numpy as np
 import pubchempy as pcp
 from tabulate import tabulate
 from loguru import logger
-
 from rdkit import Chem, RDLogger
 from rdkit.Chem import Descriptors, AllChem, MACCSkeys
 from rdkit.Chem.MolStandardize import rdMolStandardize
@@ -29,19 +28,17 @@ class DataPrep:
 
     def standardize(self, db:bool=False, tm:bool=False):
         log = setLog(name="dataPrep.standardize", debug=db, trackMem=tm)
-        parsed = {'nan': [], 'non-standardized': [], 'duplicate': [], 'invalid': []}
         parsed = {
             'nan': {
                 'compound_name': [],
-                'SMILES': [],
-                'PGCC_score': []
+                'SMILES': []
             },
             'non-standardized': {},
             'duplicate': {},
             'invalid_score': {}
         }
         df = pl.DataFrame(self.rawData).cast({'compound_name': str, 'SMILES': str, 'PGCC_score': float})
-        lib = pl.DataFrame(schema=df.columns); rows = []
+        lib = pl.DataFrame(schema=df.columns)
         log.info(f'standardizing raw compound library: {df.shape}')
 
         index = 0
@@ -76,7 +73,9 @@ class DataPrep:
             # SMILES normalization:
             norm = self.normalize(nameKey, smi, db=db, tm=tm)
             if norm[0]: newsmi = norm[1].strip()
-            else: parsed['non-standardized'][nameKey] = norm[1]
+            else:
+                parsed['non-standardized'][nameKey] = norm[1]
+                continue
 
             # search for name on pubchempy if not listed
             if name=='(default)':
@@ -100,6 +99,7 @@ class DataPrep:
                 elif name==oldName and smi==oldSmi and pScore==oldScore:
                     logger.debug(f'!-{nameKey}: exact duplicates; skipping current')
                     continue
+            smi = newsmi
 
             # add binary labels (and optional int labels)
             binLabel = 1 if pScore < 1 else 0
@@ -108,7 +108,20 @@ class DataPrep:
                 npBinary = 1 if npScore < 1 else 0
                 intLabel = binLabel + npBinary
 
-            
+            row = {
+                'compound_name': name,
+                'SMILES': smi,
+                'PGCC_score': pScore
+            }
+            if "nonPGCC_score" in df.columns: row['nonPGCC_score'] = npScore
+            if 'pathway' in df.columns: row['pathways'] = pathway
+            if 'target' in df.columns: row['target'] = target
+            if 'info' in df.columns: row['info'] = info
+            lib = pl.concat([lib, pl.DataFrame(row)])
+
+        log.info(f'completed data standardization and SMILES normalization.')
+        lib.write_csv(os.path.join(os.getenv("BASE_PATH"), 'data', 'lib.csv'))
+        with open(os.path.join(os.getenv("BASE_PATH"), 'logs', 'parsed_compounds.json'), 'w') as f: json.dump(parsed, f, indent=4)
 
     @logger.catch
     def normalize(self, nameKey, smi, db:bool=False, tm:bool=False) -> tuple[bool, str]:
@@ -148,6 +161,7 @@ class DataPrep:
 
         return True, str(newsmi)
 
+    def getFeatures(self):
 
     # def getFeatures(self): pass
     # def evalFeatures(self): pass
