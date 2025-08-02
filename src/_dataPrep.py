@@ -2,13 +2,13 @@ import os, requests, json
 import polars as pl
 import numpy as np
 import pubchempy as pcp
-from tabulate import tabulate
 from loguru import logger
 from rdkit import Chem, RDLogger
 from rdkit.Chem import Descriptors, AllChem, MACCSkeys
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.ML.Descriptors import MoleculeDescriptors
 from sklearn.model_selection import train_test_split
+from utils import setLog, Data
 
 featureColumns = {
     'rdkit': [desc[0] for desc in Descriptors.descList],
@@ -18,31 +18,32 @@ featureColumns = {
 calc = MoleculeDescriptors.MolecularDescriptorCalculator(featureColumns['rdkit'])
 uncharger = rdMolStandardize.Uncharger()
 te = rdMolStandardize.TautomerEnumerator()
-
 RDLogger.DisableLog('rdApp.*')
-from utils.logger import setLog
 
 class DataPrep:
-    def __init__(self, rawData: pl.DataFrame=None, db:bool=None, tm:bool=None, rs:int=None):
-        self.basePath = os.getenv("BASE_PATH")
-        self.dataPath = os.path.join(self.basePath, 'data')
-        self.featPath = os.path.join(self.dataPath, 'features'); os.makedirs(self.featPath, exist_ok=True)
-        self.scafPath = os.path.join(self.dataPath, 'scaffolds'); os.makedirs(self.scafPath, exist_ok=True)
+    def __init__(self, rawData: pl.DataFrame=None, rs:int=None, vt:float=None):
+        self.base_path = os.getenv(
+            "BASE_PATH",
+            os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        )
+        self.data_path = os.path.join(self.base_path, 'data')
+        self.featPath = os.path.join(self.data_path, 'features'); os.makedirs(self.featPath, exist_ok=True)
+        self.scafPath = os.path.join(self.data_path, 'scaffolds'); os.makedirs(self.scafPath, exist_ok=True)
         self.featMetaPath = os.path.join(self.featPath, 'meta')
         os.makedirs(self.featMetaPath, exist_ok=True)
         os.makedirs(os.path.join(self.scafPath, 'ecfp4'), exist_ok=True)
         os.makedirs(os.path.join(self.scafPath, 'maccs'), exist_ok=True)
         os.makedirs(os.path.join(self.scafPath, 'rdkit'), exist_ok=True)
-        self.db = db if db is not None else os.getenv("DEBUG", 'false').lower()=='true'
-        self.tm = tm if tm is not None else os.getenv("TRACK_MEM", 'false').lower()=='true'
         self.rs = rs if rs is not None else int(os.getenv("RANDOM_STATE", '15'))
-        self.logger = setLog(name="dataPrep", debug=self.db, trackMem=self.tm)
+        self.vt = vt if vt is not None else float(os.getenv("VARIANCE_THRESHOLD", '0.1'))
+        self.logger = setLog(
+            name="dataPrep",
+            debug=os.getenv("DEBUG", 'false').lower()=='true',
+            trackMem=os.getenv("TRACK_MEM", 'false').lower()=='true'
+        )
 
-        standardization = self.standardize(rawData=rawData)
-        libDF = standardization['lib']
-        rdkit = standardization['rdkitFeatures']
-        maccs = standardization['maccsFeatures']
-        ecfp4 = standardization['ecfp4Features']
+        libDF, features = self.standardize(rawData=rawData)
+        for key, val in features.items(): self.curateFeatures(df=pl.DataFrame(val), type=str(key))
 
     @logger.catch
     def normalize(self, nameKey, smi) -> tuple[bool, str]:
@@ -126,7 +127,7 @@ class DataPrep:
             'invalid_score': {}
         }
         if rawData is not None: df = pl.DataFrame(rawData)
-        else: df = pl.read_csv(os.path.join(self.dataPath, 'raw_lib.csv'))
+        else: df = pl.read_csv(os.path.join(self.data_path, 'raw_lib.csv'))
         if not {'compound_name', 'SMILES', 'score'}.issubset(df.columns): log.error("Missing required columns")
         else: df = df.cast({'compound_name': str, 'SMILES': str, 'score': float})
         lib = pl.DataFrame(schema=df.columns)
@@ -161,7 +162,7 @@ class DataPrep:
             nameKey = f'[{index}]_{name}'
 
             # SMILES normalization:
-            norm = self.normalize(nameKey, smi, db=self.db, tm=self.tm)
+            norm = self.normalize(smi, nameKey)
             if norm[0]: newsmi = norm[1].strip()
             else:
                 parsed['non-standardized'][nameKey] = norm[1]
@@ -213,8 +214,8 @@ class DataPrep:
             ecfp4.append(pl.concat([row, pl.Series(features['ecfp4'])]))
 
         log.info(f'completed data standardization and SMILES normalization.')
-        lib.write_csv(os.path.join(self.dataPath, 'lib.csv'))
-        with open(os.path.join(self.basePath, 'logs', 'parsed_compounds.json'), 'w') as f: json.dump(parsed, f, indent=4)
+        lib.write_csv(os.path.join(self.data_path, 'lib.csv'))
+        with open(os.path.join(self.base_path, 'logs', 'parsed_compounds.json'), 'w') as f: json.dump(parsed, f, indent=4)
 
         log.info(f'completed feature extraction.')
         rdkitDF = pl.DataFrame(rdkit)
@@ -224,15 +225,14 @@ class DataPrep:
         ecfp4DF = pl.DataFrame(ecfp4)
         ecfp4DF.write_csv(os.path.join(self.featMetaPath, 'ecfp4_meta.csv'))
 
-        return {
-            'lib': lib,
+        return lib, {
             'rdkitFeatures': rdkitDF,
             'maccsFeatures': maccsDF,
             'ecfp4Features': ecfp4DF
         }
 
     # drop low-var features and split into test/train/valid sets
-    def curateFeatures(self, df: pl.DataFrame, type:str, threshold:float=0.1):
+    def curateFeatures(self, df: pl.DataFrame, type:str):
         log = self.logger
         if type not in ['rdkit', 'maccs', 'ecfp4']: log.error("dataset type not supported: {type}")
         colToDrop = ['compound_name', 'SMILES', 'score', 'label', 'pathway', 'target', 'info']
@@ -241,7 +241,7 @@ class DataPrep:
         out = pl.DataFrame(df.drop([col for col in colToDrop if col in df.columns])).cast(int if type!='rdkit' else float)
         outnp = out.to_numpy()
         var = np.var(outnp, axis=0)
-        lowVarCol = [out.columns[i] for i, variance in enumerate(var) if variance < threshold]
+        lowVarCol = [out.columns[i] for i, variance in enumerate(var) if variance < self.vt]
         meta = pl.concat([infoDF, out], how='horizontal').drop(lowVarCol)
         meta.write_csv(os.path.join(self.featPath, f'{type}.csv'))
 
@@ -267,7 +267,6 @@ class DataPrep:
             estateCols = [col for col in descs.to_list() if "EState" in str(col)]
             fgcCols = [col for col in estateCols if col.startswith('fr_')]
             mtCols = [col for col in fgcCols if str(col).lower() in ['balabanj', 'bertzct', 'hallkieralpha', 'ipc', 'avgipc']]
-            # fbCols = [col for col in mtCols if str(col).startswith(['Fp', 'BCUT2D'])]
             fbCols = [col for col in mtCols if any(str(col).startswith(prefix) for prefix in ['Fp', 'BCUT2D'])]
             saCols = [col for col in fbCols if any(x in str(col).lower() for x in ['peoe', 'smr', 'slogp']) or str(col).lower()=='labuteasa']
             sdcCols = [
@@ -291,27 +290,6 @@ class DataPrep:
             splitSubcats(name=type, path=currPath, sc=subcategories, rs=self.rs)
         else: split(df=meta, name=type, path=currPath, rs=self.rs)
 
-        # return ?
-
-def setupSourceData(path=os.path.join(os.getenv("BASE_PATH"), 'data')):
-    log = setLog(name='dataPrep.setupSourceData', debug=os.getenv("DEBUG"), trackMem=os.getenv("TRACK_MEM"))
-    df = None
-    for file in os.listdir(path):
-        name = str(os.fsdecode(file))
-        if name=='raw_lib.csv': return pl.DataFrame(name)
-        if name.startswith("source"):
-            if name.endswith(".csv"): df = pl.read_csv(name, has_header=True)
-            elif name.endswith(".xlsx"): df = pl.read_excel(name, has_header=True)
-            else: log.warning(f'Incompatable types for source data: {name.split('.')[-1]}')
-    if not isinstance(df, pl.DataFrame): log.error('No source data found in data/ directory..\n(Ensure that input file name begins with "source" and is either CSV or XLSX.)')
-
-    rawData_df = pl.DataFrame(df).select(['compound_name', 'SMILES', 'score'])
-    toIncl = pl.DataFrame(df).filter(optCol for optCol in ['pathway', 'target', 'info'] if optCol in df.columns)
-    rawData_df = pl.concat([rawData_df, toIncl], how="horizontal")
-    rawData_df.write_csv(os.path.join(path, 'raw_lib.csv'))
-
 if __name__ == "__main__":
-    setupSourceData()
-    cleanedDataDF = DataPrep()
-
-    
+    # initData: pl.DataFrame = setupSourceData()
+    # cleanedDataDF = DataPrep(rawData=initData)

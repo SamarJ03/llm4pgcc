@@ -15,13 +15,9 @@ Place the source input data within this directory path. Accepted formats are CSV
   > "SMILES"
     * (The compound in SMILES format)
   > "score"
-    * (PGCC post-treatment biodata)
-    * [post_pgcc / pre_pgcc * 100]
+    * (post-treatment abundance / pre-treatment abundance * 100)
 
 - (optional)
-  > "nonPGCC_score"
-    * (nonPGCC post-treatment biodata)
-    * [post_cancCell / pre_cancCell * 100]
   > "pathway"
   > "target"
   > "info"
@@ -30,9 +26,9 @@ Place the source input data within this directory path. Accepted formats are CSV
 ```
 PATH LAYOUT PLAN FOR DATA/:
 
-source_lib.xlsx (user input csv or xlsx file)
+source_library.xlsx (user input csv or xlsx file)
 raw_lib.csv (user input in CSV format, only required params kept)
-clean_lib.csv (raw_lib.csv after data preprocessing steps)
+lib.csv (raw_lib.csv after data preprocessing steps)
 lib.json (JSON file of clean_lib.csv compounds with BOTH required and optional fields)
 features.csv (CSV of all compounds from clean_lib.csv and maccs/ecfp4/rdkit descriptors)
 features/
