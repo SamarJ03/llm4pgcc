@@ -14,7 +14,7 @@ Place the source input data within this directory path. Accepted formats are CSV
   > "compound_name"
   > "SMILES"
     * (The compound in SMILES format)
-  > "PGCC_score"
+  > "score"
     * (PGCC post-treatment biodata)
     * [post_pgcc / pre_pgcc * 100]
 
